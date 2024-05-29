@@ -212,22 +212,22 @@ fmt.Println("Data:", output.Data)
 ##  Example
 ```json
 {
-	"Method": "GET",
-	"URL": "https://example.com",
-	"Header": {
-		"User-Agent": "test/0.1.0",
+	"Method":"GET",
+	"URL":"https://example.com",
+	"Header":{
+	   "User-Agent":"test/0.1.0"
 	},
-	"Timeout": 5000,
-	"Selectors": {
-		"a":  {
-			"Expr": "//body/a",
-			"Type": "xpath",
-			"All": true,
-			"Follow": true,
-			"Selectors": {
-				"title": "//head/title"
-			}
-		}
+	"Timeout":5000,
+	"Selectors":{
+	   "a":{
+		  "Expr":"//a/@href",
+		  "Type":"xpath",
+		  "All":true,
+		  "Follow":true,
+		  "Selectors":{
+			 "title":"//head/title"
+		  }
+	   }
 	}
-}
+ }
 ```

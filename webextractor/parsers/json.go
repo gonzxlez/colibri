@@ -23,12 +23,12 @@ func ParseJSON(resp colibri.Response) (*JSONode, error) {
 	return &JSONode{root}, nil
 }
 
-func (json *JSONode) Find(expr, exprType string) (Node, error) {
-	if (exprType != "") && !strings.EqualFold(exprType, XPathExpr) {
+func (json *JSONode) Find(selector *colibri.Selector) (colibri.Node, error) {
+	if (selector.Type != "") && !strings.EqualFold(selector.Type, XPathExpr) {
 		return nil, ErrExprType
 	}
 
-	jsonNode, err := jsonquery.Query(json.node, expr)
+	jsonNode, err := jsonquery.Query(json.node, selector.Expr)
 	if err != nil {
 		return nil, err
 	} else if jsonNode == nil {
@@ -38,17 +38,17 @@ func (json *JSONode) Find(expr, exprType string) (Node, error) {
 	return &JSONode{jsonNode}, nil
 }
 
-func (json *JSONode) FindAll(expr, exprType string) ([]Node, error) {
-	if (exprType != "") && !strings.EqualFold(exprType, XPathExpr) {
+func (json *JSONode) FindAll(selector *colibri.Selector) ([]colibri.Node, error) {
+	if (selector.Type != "") && !strings.EqualFold(selector.Type, XPathExpr) {
 		return nil, ErrExprType
 	}
 
-	jsonNodes, err := jsonquery.QueryAll(json.node, expr)
+	jsonNodes, err := jsonquery.QueryAll(json.node, selector.Expr)
 	if err != nil {
 		return nil, err
 	}
 
-	var nodes []Node
+	var nodes []colibri.Node
 	for _, node := range jsonNodes {
 		nodes = append(nodes, &JSONode{node})
 	}

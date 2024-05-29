@@ -13,7 +13,7 @@ import (
 )
 
 // DefaultUserAgent is the default User-Agent used for requests.
-const DefaultUserAgent = "colibri/0.1"
+const DefaultUserAgent = "colibri/0.2"
 
 var (
 	// ErrClientIsNil returned when Client is nil.
@@ -103,7 +103,7 @@ type (
 		Match(contentType string) bool
 
 		// Parse parses the response based on the rules.
-		Parse(rules *Rules, resp Response) (map[string]any, error)
+		Parse(rules *Rules, resp Response) (Node, error)
 
 		// Clear cleans the fields of the structure.
 		Clear()
@@ -207,7 +207,12 @@ func (c *Colibri) Extract(rules *Rules) (output *Output, err error) {
 	}
 
 	if len(rules.Selectors) > 0 {
-		output.Data, err = c.Parser.Parse(rules, output.Response)
+		var parent Node
+		parent, err = c.Parser.Parse(rules, output.Response)
+
+		if err == nil {
+			output.Data, err = FindSelectors(rules, output.Response, parent)
+		}
 	}
 	return output, err
 }

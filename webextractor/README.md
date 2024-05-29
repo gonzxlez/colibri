@@ -53,6 +53,7 @@ Content-Type text/html; charset=UTF-8
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/gonzxlez/colibri"

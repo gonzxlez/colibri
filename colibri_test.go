@@ -3,104 +3,12 @@ package colibri
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"reflect"
 	"testing"
 	"time"
-)
-
-var (
-	testRawRulesJSON = []byte(`{
-	"Method":          "GET",
-	"url":             "http://example.com",
-	"proxy":           "http://proxy.example.com:8080",
-	"header":          {"User-Agent": "test/0.2.0"},
-	"timeout":         2.5,
-	"cookies":         true,
-	"ignoreRobotsTXT": true,
-	"delay":           1.5,
-	"redirects": 3,
-	"Selectors": {
-		"body": {
-			"name": "body",
-			"expr": "//body",
-			"type": "xpath",
-			"all":  false,
-			"selectors": {
-				"urls": {
-					"expr":   "//a/@href",
-					"all":    true,
-					"follow": true,
-					"method": "get",
-					"proxy":  "http://proxy.example.com:8080",
-					"header": {
-						"User-Agent": ["test/0.2.0"]
-					},
-					"timeout": 5000,
-					"selectors": {
-						"title": "//title"
-					},
-					"required": true
-				}
-			}
-		}
-	},
-	"token": 505
-}`)
-
-	testBadRawRulesJSON = []byte(`{
-	"Method":          0.1,
-	"url":             "http://example.com",
-	"proxy":           "$$$$<:>8080",
-	"header":          {"User-Agent": 0.2},
-	"timeout":         "2.5",
-	"cookies":         "true",
-	"ignoreRobotsTXT": 1,
-	"delay":           {},
-	"bodysize":        "5mb",
-	"redirects":       true,
-	"Selectors": {
-		"body": {
-			"name": "body",
-			"expr": "//body",
-			"type": "xpath",
-			"all":  false,
-			"selectors": {
-				"urls": {
-					"expr":   505,
-					"all":    true,
-					"follow": true,
-					"method": "get",
-					"proxy":  false,
-					"header": {
-						"User-Agent": ["test/0.2.0"]
-					},
-					"timeout": true,
-					"selectors": "title: //title",
-					"required": true
-				}
-			}
-		}
-	},
-	"token": 101
-}`)
-
-	testBadRawRulesJSON_ErrInvalidSelectors = []byte(`{
-	"Method":    "GET",
-	"url":       "http://example.com",
-	"Selectors": "err"
-}`)
-
-	testBadRawRulesJSON_ErrInvalidSelector = []byte(`{
-	"Method":    "POST",
-	"url":       "http://example.com",
-	"Selectors": {
-		"body": 101
-	}
-}`)
 )
 
 var (
@@ -156,89 +64,125 @@ func mustNewURL(rawURL string) *url.URL {
 }
 
 func TestDo(t *testing.T) {
-	var (
-		c      = New()
-		client = &testClient{}
-		delay  = &testDelay{}
-		robots = &testRobots{}
-
-		testErr = errors.New("Test Error")
-	)
+	var testErr = errors.New("test err")
 
 	tests := []struct {
 		Name   string
 		Rules  *Rules
-		Client Client
-		Delay  Delay
-		Robots RobotsTxt
+		Client bool
+		Delay  bool
+		Robots bool
 
 		DelayWaitUsed  bool
 		DelayStampUsed bool
 		RobotsUsed     bool
 		Err            error
 	}{
-		{"OK", &Rules{Delay: time.Second}, client, delay, robots, true, true, true, nil},
-		{"clientIsNil", &Rules{}, nil /*Client*/, delay, robots, false, false, false, ErrClientIsNil},
-		{"rulesIsNil", nil /*Rules*/, client, delay, robots, false, false, false, ErrRulesIsNil},
-
-		{"noDelay", &Rules{}, client, nil /*Delay*/, robots, false, false, true, nil},
-		{"noDelayStart", &Rules{}, client, delay, robots, false, true, true, nil},
-		{"noRobots", &Rules{Delay: time.Second}, client, delay, nil /*Robots*/, true, true, false, nil},
-		{"noDelayNoRobots", &Rules{}, client, nil /*Delay*/, nil /*Robots*/, false, false, false, nil},
-
 		{
-			"doErr",
-			&Rules{Extra: map[string]any{"doErr": testErr}},
-			client,
-			delay,
-			robots,
-			false,
-			true,
-			false,
-			testErr,
+			Name:           "OK",
+			Rules:          &Rules{Delay: time.Second},
+			Client:         true,
+			Delay:          true,
+			Robots:         true,
+			DelayWaitUsed:  true,
+			DelayStampUsed: true,
+			RobotsUsed:     true,
 		},
 		{
-			"robotsErr",
-			&Rules{Extra: map[string]any{"robotsErr": testErr}},
-			client,
-			nil, /*Delay*/
-			robots,
-			false,
-			false,
-			true,
-			testErr,
+			Name:   "clientIsNil",
+			Rules:  &Rules{},
+			Delay:  true,
+			Robots: true,
+			Err:    ErrClientIsNil,
 		},
 		{
-			"doPanic",
-			&Rules{Extra: map[string]any{"doPanic": testErr}},
-			client,
-			nil, /*Delay*/
-			nil, /*Robots*/
-			false,
-			false,
-			false,
-			testErr,
+			Name:   "rulesIsNil",
+			Client: true,
+			Delay:  true,
+			Robots: true,
+			Err:    ErrRulesIsNil,
 		},
 		{
-			"robotsPanic",
-			&Rules{Extra: map[string]any{"robotsPanic": testErr}},
-			client,
-			nil, /*Delay*/
-			robots,
-			false,
-			false,
-			true,
-			testErr,
+			Name:       "noDelay",
+			Rules:      &Rules{},
+			Client:     true,
+			Robots:     true,
+			RobotsUsed: true,
+		},
+		{
+			Name:           "noDelayStart",
+			Rules:          &Rules{},
+			Client:         true,
+			Delay:          true,
+			Robots:         true,
+			DelayStampUsed: true,
+			RobotsUsed:     true,
+		},
+		{
+			Name:           "noRobots",
+			Rules:          &Rules{Delay: time.Second},
+			Client:         true,
+			Delay:          true,
+			DelayWaitUsed:  true,
+			DelayStampUsed: true,
+		},
+		{
+			Name:   "noDelayNoRobots",
+			Rules:  &Rules{},
+			Client: true,
+		},
+		{
+			Name:           "doErr",
+			Rules:          &Rules{Extra: map[string]any{"doErr": testErr}},
+			Client:         true,
+			Delay:          true,
+			Robots:         true,
+			DelayStampUsed: true,
+			Err:            testErr,
+		},
+		{
+			Name:       "robotsErr",
+			Rules:      &Rules{Extra: map[string]any{"robotsErr": testErr}},
+			Client:     true,
+			Robots:     true,
+			RobotsUsed: true,
+			Err:        testErr,
+		},
+		{
+			Name:   "doPanic",
+			Rules:  &Rules{Extra: map[string]any{"doPanic": testErr}},
+			Client: true,
+			Err:    testErr,
+		},
+		{
+			Name:       "robotsPanic",
+			Rules:      &Rules{Extra: map[string]any{"robotsPanic": testErr}},
+			Client:     true,
+			Robots:     true,
+			RobotsUsed: true,
+			Err:        testErr,
 		},
 	}
 
 	for _, tt := range tests {
-		c.Client = tt.Client
-		c.Delay = tt.Delay
-		c.RobotsTxt = tt.Robots
-
 		t.Run(tt.Name, func(t *testing.T) {
-			defer c.Clear()
+			var (
+				c      = New()
+				delay  = &testDelay{}
+				robots = &testRobots{}
+			)
+
+			if tt.Client {
+				c.Client = &testClient{}
+			}
+
+			if tt.Delay {
+				c.Delay = delay
+			}
+
+			if tt.Robots {
+				c.RobotsTxt = robots
+			}
 
 			_, err := c.Do(tt.Rules)
 			if (err != nil) && (tt.Err != nil) {
@@ -249,19 +193,19 @@ func TestDo(t *testing.T) {
 
 			} else if (err == nil) && (tt.Err == nil) {
 				if delay.WaitUsed != tt.DelayWaitUsed {
-					t.Fatal("Delay Wait")
+					t.Fatal("Delay.Wait =", delay.WaitUsed)
 				}
 
 				if delay.DoneUsed != tt.DelayWaitUsed {
-					t.Fatal("Delay Done")
+					t.Fatal("Delay.Done =", delay.DoneUsed)
 				}
 
 				if delay.StampUsed != tt.DelayStampUsed {
-					t.Fatal("Delay Stamp")
+					t.Fatal("Delay.Stamp =", delay.StampUsed)
 				}
 
 				if robots.IsAllowedUsed != tt.RobotsUsed {
-					t.Fatal("RobotsTxt IsAllowed")
+					t.Fatal("RobotsTxt.IsAllowed =", robots.IsAllowedUsed)
 				}
 
 				return
@@ -274,83 +218,108 @@ func TestDo(t *testing.T) {
 
 func TestExtract(t *testing.T) {
 	var (
-		c      = New()
-		client = &testClient{}
-		parser = &testParser{}
-
-		testErr = errors.New("Test Error")
+		testErr = errors.New("test err")
 
 		wantOut = map[string]any{
 			"response": map[string]any{"url": "http://example.com"},
 			"data":     map[string]any{"title": "test"},
 		}
 	)
-	c.RobotsTxt = &testRobots{}
 
 	tests := []struct {
 		Name      string
 		Rules     *Rules
-		Client    Client
-		Parser    Parser
+		Client    bool
+		Parser    bool
 		ParseUsed bool
 		Err       error
 	}{
-		{"OK", &Rules{Selectors: []*Selector{testSelector}}, client, parser, true, nil},
-
-		{"ClientIsNil", &Rules{}, nil, parser, false, ErrClientIsNil},
-		{"ParserIsNil", &Rules{}, client, nil, false, ErrParserIsNil},
-		{"ParserIsNil2", &Rules{}, nil, nil, false, ErrParserIsNil},
-
 		{
-			"doErr",
-			&Rules{
+			Name: "OK",
+			Rules: &Rules{Selectors: []*Selector{
+				{Name: "title", Expr: "//title"},
+			}},
+			Client:    true,
+			Parser:    true,
+			ParseUsed: true,
+		},
+		{
+			Name:   "ClientIsNil",
+			Rules:  &Rules{},
+			Parser: true,
+			Err:    ErrClientIsNil,
+		},
+		{
+			Name:   "ParserIsNil",
+			Rules:  &Rules{},
+			Client: true,
+			Err:    ErrParserIsNil,
+		},
+		{
+			Name:  "ParserIsNil2",
+			Rules: &Rules{},
+			Err:   ErrParserIsNil,
+		},
+		{
+			Name: "doErr",
+			Rules: &Rules{
 				Extra: map[string]any{"doErr": testErr},
 			},
-			client,
-			parser,
-			true,
-			testErr,
+			Client:    true,
+			Parser:    true,
+			ParseUsed: true,
+			Err:       testErr,
 		},
 		{
-			"robotsErr",
-			&Rules{
+			Name: "robotsErr",
+			Rules: &Rules{
 				Extra: map[string]any{"robotsErr": testErr},
 			},
-			client,
-			parser,
-			true,
-			testErr,
+			Client:    true,
+			Parser:    true,
+			ParseUsed: true,
+			Err:       testErr,
 		},
 		{
-			"parserErr",
-			&Rules{
+			Name: "parserErr",
+			Rules: &Rules{
 				Selectors: []*Selector{testSelector},
 				Extra:     map[string]any{"parserErr": testErr},
 			},
-			client,
-			parser,
-			true,
-			testErr,
+			Client:    true,
+			Parser:    true,
+			ParseUsed: true,
+			Err:       testErr,
 		},
 		{
-			"panic",
-			&Rules{
+			Name: "panic",
+			Rules: &Rules{
 				Selectors: []*Selector{testSelector},
 				Extra:     map[string]any{"parserPanic": testErr},
 			},
-			client,
-			parser,
-			true,
-			testErr,
+			Client:    true,
+			Parser:    true,
+			ParseUsed: true,
+			Err:       testErr,
 		},
 	}
 
 	for _, tt := range tests {
-		c.Client = tt.Client
-		c.Parser = tt.Parser
-
 		t.Run(tt.Name, func(t *testing.T) {
-			defer c.Clear()
+			var (
+				c      = New()
+				parser = &testParser{}
+			)
+
+			c.RobotsTxt = &testRobots{}
+
+			if tt.Client {
+				c.Client = &testClient{}
+			}
+
+			if tt.Parser {
+				c.Parser = parser
+			}
 
 			output, err := c.Extract(tt.Rules)
 			if (err != nil) && (tt.Err != nil) {
@@ -365,7 +334,7 @@ func TestExtract(t *testing.T) {
 				}
 
 				if !reflect.DeepEqual(output.Serializable(), wantOut) {
-					t.Fatal("output Serializable")
+					t.Fatal("not equal")
 				}
 				return
 			}
@@ -373,6 +342,37 @@ func TestExtract(t *testing.T) {
 			t.Fatal(err)
 		})
 	}
+
+	t.Run("Output.MarshalJSON", func(t *testing.T) {
+		out := &Output{
+			Response: &testResponse{},
+			Data: map[string]any{
+				"title": "test",
+			},
+		}
+
+		data, err := out.MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		resp := &testResponse{}
+		want := map[string]any{
+			"response": resp.Serializable(),
+			"data": map[string]any{
+				"title": "test",
+			},
+		}
+
+		outMap := make(map[string]any)
+		if err := json.Unmarshal(data, &outMap); err != nil {
+			t.Fatal(err)
+		}
+
+		if !reflect.DeepEqual(outMap, want) {
+			t.Fatal("not equal")
+		}
+	})
 }
 
 func TestUserAgent(t *testing.T) {
@@ -405,234 +405,31 @@ func TestUserAgent(t *testing.T) {
 	}
 }
 
-func TestClone(t *testing.T) {
-	t.Run("OK", func(t *testing.T) {
-		if !reflect.DeepEqual(testRules.Clone(), testRules) {
-			t.Fatal("not Equal")
-		}
-	})
+func TestClear(t *testing.T) {
+	var (
+		c      = New()
+		client = &testClient{}
+		delay  = &testDelay{}
+		robots = &testRobots{}
+		parser = &testParser{}
+	)
 
-	t.Run("empty", func(t *testing.T) {
-		rules := &Rules{Extra: make(map[string]any)}
-		if !reflect.DeepEqual(rules.Clone(), rules) {
-			t.Fatal("not Equal")
-		}
-	})
-}
+	c.Clear()
 
-func TestSelectorRules(t *testing.T) {
-	tests := []struct {
-		SRC      *Rules
-		Selector *Selector
-		Rules    *Rules
-	}{
-		{testRules, testSelector, &Rules{
-			Method:          testSelector.Method,
-			Proxy:           testRules.Proxy,
-			Header:          http.Header{"User-Agent": {"test/0.2.0"}},
-			Timeout:         testRules.Timeout,
-			Cookies:         testRules.Cookies,
-			IgnoreRobotsTxt: testRules.IgnoreRobotsTxt,
-			Delay:           testRules.Delay,
-			Redirects:       testRules.Redirects,
-			Selectors:       testSelector.Selectors,
-			Extra:           testSelector.Extra,
-		}},
+	c.Client = client
+	c.Delay = delay
+	c.RobotsTxt = robots
+	c.Parser = parser
 
-		{
-			&Rules{
-				Method:  "POST",
-				Proxy:   mustNewURL("http://proxy.example.com:8081"),
-				Timeout: 5 * time.Second,
-			},
-			&Selector{
-				Method:  "GET",
-				Proxy:   mustNewURL("http://proxy.example.com:8080"),
-				Header:  http.Header{"Accept": []string{"text/html"}},
-				Timeout: 10 * time.Millisecond,
-				Extra: map[string]any{
-					"required": true,
-				},
-			},
-			&Rules{
-				Method:  "GET",
-				Proxy:   mustNewURL("http://proxy.example.com:8080"),
-				Header:  http.Header{"Accept": []string{"text/html"}},
-				Timeout: 10 * time.Millisecond,
-				Extra: map[string]any{
-					"required": true,
-				},
-			},
-		},
+	if client.ClearUsed || delay.ClearUsed || robots.ClearUsed || parser.ClearUsed {
+		t.Fatal("clear used")
 	}
 
-	for _, tt := range tests {
-		t.Run("", func(t *testing.T) {
-			rules := tt.Selector.Rules(tt.SRC)
+	c.Clear()
 
-			if !reflect.DeepEqual(rules, tt.Rules) {
-				t.Fatal("not equal")
-			}
-		})
+	if !client.ClearUsed || !delay.ClearUsed || !robots.ClearUsed || !parser.ClearUsed {
+		t.Fatal("clear used")
 	}
-}
-
-func TestRulesUnmarshalJSON(t *testing.T) {
-	tests := []struct {
-		Name     string
-		RawRules []byte
-		Rules    *Rules
-		AnErr    bool
-	}{
-		{"OK", testRawRulesJSON, testRules, false},
-
-		{
-			"empty",
-			[]byte(`{
-				"Selectors": {
-					"head": null,
-					"body": {
-						"selectors": null
-					}
-				}
-			}`),
-			&Rules{
-				Selectors: []*Selector{
-					{
-						Name:  "body",
-						Extra: make(map[string]any),
-					},
-				},
-				Extra: make(map[string]any),
-			},
-			false,
-		},
-
-		{"nil", []byte(`{}`), &Rules{Extra: make(map[string]any)}, false},
-
-		{"null", []byte(`null`), &Rules{}, false},
-
-		{"fail", []byte(`"string"`), nil, true},
-
-		{"badRules", testBadRawRulesJSON, nil, true},
-
-		{"errInvalidSelectors", testBadRawRulesJSON_ErrInvalidSelectors, nil, true},
-
-		{"errInvalidSelector", testBadRawRulesJSON_ErrInvalidSelector, nil, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			newRules := &Rules{}
-			defer ReleaseRules(newRules)
-
-			err := json.Unmarshal(tt.RawRules, newRules)
-			if (err != nil && !tt.AnErr) || (err == nil && tt.AnErr) {
-				t.Fatal(err)
-
-			} else if (err == nil) && !tt.AnErr {
-				if !reflect.DeepEqual(newRules, tt.Rules) {
-					t.Fatal("not equal")
-				}
-			}
-		})
-	}
-}
-
-func TestUtilFuncs(t *testing.T) {
-	t.Run("toInt", func(t *testing.T) {
-		tests := []struct {
-			Input  any
-			Output int
-			AnErr  bool
-		}{
-			{1, 1, false},
-			{1000, 1000, false},
-			{1.5, 1, false},
-
-			{"str", 0, true},
-			{nil, 0, true},
-			{false, 0, true},
-		}
-
-		for _, tt := range tests {
-			name := fmt.Sprint(tt.Input)
-
-			t.Run(name, func(t *testing.T) {
-				out, err := toInt(tt.Input)
-				if (err != nil && !tt.AnErr) || (err == nil && tt.AnErr) {
-					t.Fatal(err)
-
-				} else if (err == nil) && !tt.AnErr {
-					if !reflect.DeepEqual(out, tt.Output) {
-						t.Fatal("not equal")
-					}
-				}
-			})
-		}
-	})
-
-	t.Run("toHeader", func(t *testing.T) {
-		tests := []struct {
-			Input  any
-			Output http.Header
-			AnErr  bool
-		}{
-			{map[string]any{"User-Agent": "test/0.2.0"}, http.Header{"User-Agent": {"test/0.2.0"}}, false},
-			{nil, http.Header{}, false},
-
-			{"str", nil, true},
-			{map[string]any{"User-Agent": 2.0}, nil, true},
-			{map[string]any{"User-Agent": []any{"test/0.2.0", 2.0}}, nil, true},
-		}
-
-		for _, tt := range tests {
-			name := fmt.Sprint(tt.Input)
-
-			t.Run(name, func(t *testing.T) {
-				out, err := toHeader(tt.Input)
-				if (err != nil && !tt.AnErr) || (err == nil && tt.AnErr) {
-					t.Fatal(err)
-
-				} else if (err == nil) && !tt.AnErr {
-					if !reflect.DeepEqual(out, tt.Output) {
-						t.Fatal("not equal")
-					}
-				}
-			})
-		}
-	})
-
-	t.Run("toDuration", func(t *testing.T) {
-		tests := []struct {
-			Input  any
-			Output time.Duration
-			AnErr  bool
-		}{
-			{1, 1 * time.Millisecond, false},
-			{1000, 1 * time.Second, false},
-			{1.5, 1500000 * time.Nanosecond, false},
-
-			{"str", 0, true},
-			{nil, 0, true},
-		}
-
-		for _, tt := range tests {
-			name := fmt.Sprint(tt.Input)
-
-			t.Run(name, func(t *testing.T) {
-				out, err := toDuration(tt.Input)
-				if (err != nil && !tt.AnErr) || (err == nil && tt.AnErr) {
-					t.Fatal(err)
-
-				} else if (err == nil) && !tt.AnErr {
-					if !reflect.DeepEqual(out, tt.Output) {
-						t.Fatal("not equal")
-					}
-				}
-			})
-		}
-	})
 }
 
 func TestErr(t *testing.T) {
@@ -726,91 +523,66 @@ func TestErr(t *testing.T) {
 	}
 }
 
-func BenchmarkRulesJSON(b *testing.B) {
-	b.ReportAllocs()
-	for n := 0; n < b.N; n++ {
-		var rules Rules
-		if err := json.Unmarshal(testRawRulesJSON, &rules); err != nil {
-			b.Fatal(err)
-		}
-		ReleaseRules(&rules)
-	}
+type testResponse struct {
+	c *Colibri
 }
 
-type testResp struct{}
+func (resp *testResponse) URL() *url.URL { return mustNewURL("http://example.com") }
 
-func (resp *testResp) URL() *url.URL { return nil }
+func (resp *testResponse) StatusCode() int { return 200 }
 
-func (resp *testResp) StatusCode() int { return 0 }
+func (resp *testResponse) Header() http.Header { return http.Header{} }
 
-func (resp *testResp) Header() http.Header { return nil }
+func (resp *testResponse) Body() io.ReadCloser { return nil }
 
-func (resp *testResp) Body() io.ReadCloser { return nil }
+func (resp *testResponse) Redirects() []*url.URL { return nil }
 
-func (resp *testResp) Redirects() []*url.URL { return nil }
-
-func (resp *testResp) Serializable() map[string]any {
+func (resp *testResponse) Serializable() map[string]any {
 	return map[string]any{
-		"url": "http://example.com",
+		"url": resp.URL().String(),
 	}
 }
 
-func (resp *testResp) Do(_ *Rules) (Response, error) {
-	return resp, nil
-}
+func (resp *testResponse) Do(rules *Rules) (Response, error) { return resp.c.Do(rules) }
 
-func (resp *testResp) Extract(_ *Rules) (*Output, error) {
-	return &Output{
-		Response: resp,
-		Data: map[string]any{
-			"name": "testResp",
-		},
-	}, nil
-}
+func (resp *testResponse) Extract(rules *Rules) (*Output, error) { return resp.c.Extract(rules) }
 
 type testClient struct {
 	ClearUsed bool
 }
 
-func (c *testClient) Do(_ *Colibri, rules *Rules) (Response, error) {
+func (client *testClient) Do(c *Colibri, rules *Rules) (Response, error) {
 	if err := rules.Extra["doErr"]; err != nil {
 		return nil, err.(error)
 	} else if v := rules.Extra["doPanic"]; v != nil {
 		panic(v)
 	}
-	return &testResp{}, nil
+
+	return &testResponse{c: c}, nil
 }
 
-func (c *testClient) Clear() { c.ClearUsed = true }
+func (client *testClient) Clear() {
+	client.ClearUsed = true
+}
 
 type testDelay struct {
-	WaitUsed, DoneUsed, StampUsed, ClearUsed bool
+	WaitUsed, DoneUsed, StampUsed bool
+	ClearUsed                     bool
 }
 
-func (d *testDelay) Wait(_ *url.URL, _ time.Duration) {
-	d.ClearUsed = false
-	d.WaitUsed = true
-}
+func (d *testDelay) Wait(_ *url.URL, _ time.Duration) { d.WaitUsed = true }
 
-func (d *testDelay) Done(_ *url.URL) {
-	d.ClearUsed = false
-	d.DoneUsed = true
-}
+func (d *testDelay) Done(_ *url.URL) { d.DoneUsed = true }
 
-func (d *testDelay) Stamp(_ *url.URL) {
-	d.ClearUsed = false
-	d.StampUsed = true
-}
+func (d *testDelay) Stamp(_ *url.URL) { d.StampUsed = true }
 
 func (d *testDelay) Clear() {
 	d.ClearUsed = true
-	d.WaitUsed = false
-	d.DoneUsed = false
-	d.StampUsed = false
 }
 
 type testRobots struct {
-	IsAllowedUsed, ClearUsed bool
+	IsAllowedUsed bool
+	ClearUsed     bool
 }
 
 func (r *testRobots) IsAllowed(_ *Colibri, rules *Rules) error {
@@ -826,16 +598,16 @@ func (r *testRobots) IsAllowed(_ *Colibri, rules *Rules) error {
 
 func (r *testRobots) Clear() {
 	r.ClearUsed = true
-	r.IsAllowedUsed = false
 }
 
 type testParser struct {
-	ParseUsed, ClearUsed bool
+	ParseUsed bool
+	ClearUsed bool
 }
 
 func (p *testParser) Match(_ string) bool { return true }
 
-func (p *testParser) Parse(rules *Rules, _ Response) (map[string]any, error) {
+func (p *testParser) Parse(rules *Rules, _ Response) (Node, error) {
 	p.ParseUsed = true
 
 	if err := rules.Extra["parserErr"]; err != nil {
@@ -843,10 +615,38 @@ func (p *testParser) Parse(rules *Rules, _ Response) (map[string]any, error) {
 	} else if v := rules.Extra["parserPanic"]; v != nil {
 		panic(v)
 	}
-	return map[string]any{"title": "test"}, nil
+	return &testNode{}, nil
 }
 
 func (p *testParser) Clear() {
 	p.ClearUsed = true
-	p.ParseUsed = false
+}
+
+type testNode struct {
+	value any
+}
+
+func (node *testNode) Find(selector *Selector) (Node, error) {
+	if selector.Expr == "!empty" {
+		return nil, nil
+	} else if selector.Expr == "!error" {
+		return nil, errors.New("test err")
+	} else if selector.Expr == "!number" {
+		return &testNode{value: 505}, nil
+	}
+	return &testNode{}, nil
+}
+
+func (node *testNode) FindAll(selector *Selector) ([]Node, error) {
+	if selector.Expr == "!error" {
+		return nil, errors.New("test err")
+	}
+	return []Node{&testNode{}}, nil
+}
+
+func (node *testNode) Value() any {
+	if node.value != nil {
+		return node.value
+	}
+	return "test"
 }

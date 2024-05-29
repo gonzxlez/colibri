@@ -78,8 +78,8 @@ func TestExtract(t *testing.T) {
 		emptySlice []string
 
 		wantOutput = map[string]any{
-			"html": []map[string]any{
-				{
+			"html": []any{
+				map[string]any{
 					"response": map[string]any{
 						"url":       ts.URL + "/html",
 						"code":      200,
@@ -96,8 +96,8 @@ func TestExtract(t *testing.T) {
 					},
 				},
 			},
-			"xml": []map[string]any{
-				{
+			"xml": []any{
+				map[string]any{
 					"response": map[string]any{
 						"url":       ts.URL + "/xml",
 						"code":      200,
@@ -111,8 +111,8 @@ func TestExtract(t *testing.T) {
 					"data": map[string]any{
 						"title": "XML Doc",
 
-						"json": []map[string]any{
-							{
+						"json": []any{
+							map[string]any{
 								"response": map[string]any{
 									"url":       ts.URL + "/json",
 									"code":      200,

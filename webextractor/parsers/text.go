@@ -23,12 +23,12 @@ func ParseText(resp colibri.Response) (*TextNode, error) {
 	return &TextNode{b}, nil
 }
 
-func (text *TextNode) Find(expr, exprType string) (Node, error) {
-	if (exprType != "") && !strings.EqualFold(exprType, RegularExpr) {
+func (text *TextNode) Find(selector *colibri.Selector) (colibri.Node, error) {
+	if (selector.Type != "") && !strings.EqualFold(selector.Type, RegularExpr) {
 		return nil, ErrExprType
 	}
 
-	re, err := regexp.Compile(expr)
+	re, err := regexp.Compile(selector.Expr)
 	if err != nil {
 		return nil, err
 	}
@@ -37,17 +37,17 @@ func (text *TextNode) Find(expr, exprType string) (Node, error) {
 	return &TextNode{data}, nil
 }
 
-func (text *TextNode) FindAll(expr, exprType string) ([]Node, error) {
-	if (exprType != "") && !strings.EqualFold(exprType, RegularExpr) {
+func (text *TextNode) FindAll(selector *colibri.Selector) ([]colibri.Node, error) {
+	if (selector.Type != "") && !strings.EqualFold(selector.Type, RegularExpr) {
 		return nil, ErrExprType
 	}
 
-	re, err := regexp.Compile(expr)
+	re, err := regexp.Compile(selector.Expr)
 	if err != nil {
 		return nil, err
 	}
 
-	var nodes []Node
+	var nodes []colibri.Node
 	for _, data := range re.FindAll(text.data, -1) {
 		nodes = append(nodes, &TextNode{data})
 	}

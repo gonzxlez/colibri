@@ -23,12 +23,12 @@ func ParseXML(resp colibri.Response) (*XMLNode, error) {
 	return &XMLNode{root}, nil
 }
 
-func (xml *XMLNode) Find(expr, exprType string) (Node, error) {
-	if (exprType != "") && !strings.EqualFold(exprType, XPathExpr) {
+func (xml *XMLNode) Find(selector *colibri.Selector) (colibri.Node, error) {
+	if (selector.Type != "") && !strings.EqualFold(selector.Type, XPathExpr) {
 		return nil, ErrExprType
 	}
 
-	xmlNode, err := xmlquery.Query(xml.node, expr)
+	xmlNode, err := xmlquery.Query(xml.node, selector.Expr)
 	if err != nil {
 		return nil, err
 	} else if xmlNode == nil {
@@ -38,17 +38,17 @@ func (xml *XMLNode) Find(expr, exprType string) (Node, error) {
 	return &XMLNode{xmlNode}, nil
 }
 
-func (xml *XMLNode) FindAll(expr, exprType string) ([]Node, error) {
-	if (exprType != "") && !strings.EqualFold(exprType, XPathExpr) {
+func (xml *XMLNode) FindAll(selector *colibri.Selector) ([]colibri.Node, error) {
+	if (selector.Type != "") && !strings.EqualFold(selector.Type, XPathExpr) {
 		return nil, ErrExprType
 	}
 
-	xmlNodes, err := xmlquery.QueryAll(xml.node, expr)
+	xmlNodes, err := xmlquery.QueryAll(xml.node, selector.Expr)
 	if err != nil {
 		return nil, err
 	}
 
-	var nodes []Node
+	var nodes []colibri.Node
 	for _, node := range xmlNodes {
 		nodes = append(nodes, &XMLNode{node})
 	}

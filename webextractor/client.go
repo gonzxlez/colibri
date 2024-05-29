@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gonzxlez/colibri"
-	"github.com/gonzxlez/colibri/parsers"
+	"github.com/gonzxlez/colibri/webextractor/parsers"
 
 	"golang.org/x/net/publicsuffix"
 )

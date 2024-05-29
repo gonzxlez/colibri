@@ -14,12 +14,7 @@ import (
 	"github.com/gonzxlez/colibri"
 )
 
-func mustNewURL(rawURL string) *url.URL {
-	u, _ := url.Parse(rawURL)
-	return u
-}
-
-func TestParsers(t *testing.T) {
+func TestColibriExtrac(t *testing.T) {
 	parsers, err := New()
 	if err != nil {
 		t.Fatal(err)
@@ -32,14 +27,15 @@ func TestParsers(t *testing.T) {
 	var emptySlice []any
 
 	tests := []struct {
-		Name   string
-		Rules  *colibri.Rules
-		Output map[string]any
-		ErrMap map[string]any
+		Name       string
+		Rules      *colibri.Rules
+		OutputData map[string]any
+		ErrMap     map[string]any
 	}{
 		{
 			"HTML",
 			&colibri.Rules{
+				Header: http.Header{"Accept": []string{"text/html"}},
 				Selectors: []*colibri.Selector{
 					{Name: "title", Expr: "title", Type: "css"},
 					{Name: "p", Expr: "p", Type: "css"}, // Does not exist
@@ -57,10 +53,6 @@ func TestParsers(t *testing.T) {
 					},
 					{Name: "span", Expr: "//span", Type: "xpath", All: true}, // Does not exist
 					{Name: "divs", Expr: "div", Type: "css", All: true},      // Does not exist
-				},
-				Extra: map[string]any{
-					"Content-Type": "text/html",
-					"Body":         htmlBody,
 				},
 			},
 			map[string]any{
@@ -80,6 +72,7 @@ func TestParsers(t *testing.T) {
 		{
 			"JSON",
 			&colibri.Rules{
+				Header: http.Header{"Accept": []string{"application/json"}},
 				Selectors: []*colibri.Selector{
 					{Name: "name", Expr: "//name"},
 					{
@@ -92,10 +85,6 @@ func TestParsers(t *testing.T) {
 					},
 					{Name: "hobbies", Expr: "//hobbies/*", All: true},
 					{Name: "jobs", Expr: "//jobs/*", Type: "xpath", All: true}, // Does not exist
-				},
-				Extra: map[string]any{
-					"Content-Type": "application/json",
-					"Body":         jsonBody,
 				},
 			},
 			map[string]any{
@@ -111,6 +100,7 @@ func TestParsers(t *testing.T) {
 		{
 			"Text",
 			&colibri.Rules{
+				Header: http.Header{"Accept": []string{"text/plain"}},
 				Selectors: []*colibri.Selector{
 					{
 						Name: "21",
@@ -132,10 +122,6 @@ func TestParsers(t *testing.T) {
 						},
 					},
 				},
-				Extra: map[string]any{
-					"Content-Type": "text/plain",
-					"Body":         textBody,
-				},
 			},
 			map[string]any{
 				"21": map[string]any{
@@ -155,6 +141,7 @@ func TestParsers(t *testing.T) {
 		{
 			"XML",
 			&colibri.Rules{
+				Header: http.Header{"Accept": []string{"application/xml"}},
 				Selectors: []*colibri.Selector{
 					{
 						Name: "channel",
@@ -176,10 +163,6 @@ func TestParsers(t *testing.T) {
 							{Name: "source", Expr: "//source/@url", Type: "xpath", All: true}, // Does not exist
 						},
 					},
-				},
-				Extra: map[string]any{
-					"Content-Type": "application/xml",
-					"Body":         xmlBody,
 				},
 			},
 			map[string]any{
@@ -207,6 +190,7 @@ func TestParsers(t *testing.T) {
 		{
 			"HTMLErr",
 			&colibri.Rules{
+				Header: http.Header{"Accept": []string{"text/html"}},
 				Selectors: []*colibri.Selector{
 					{Name: "Title", Expr: "]title(", Type: "css"},       // invalid css selector
 					{Name: "First", Expr: "//a[text()=", Type: "xpath"}, // invalid XPath
@@ -215,10 +199,6 @@ func TestParsers(t *testing.T) {
 					{Name: "a", Expr: "//a[@href==]", Type: "xpath", All: true}, // invalid XPath
 					{Name: "Span", Expr: "]@span", Type: "css", All: true},      // invalid css selector
 					{Name: "Divs", Expr: "div", Type: "error", All: true},       // ErrExprType
-				},
-				Extra: map[string]any{
-					"Content-Type": "text/html",
-					"Body":         htmlBody,
 				},
 			},
 			nil, /* Data */
@@ -235,16 +215,13 @@ func TestParsers(t *testing.T) {
 		{
 			"JSONErr",
 			&colibri.Rules{
+				Header: http.Header{"Accept": []string{"application/json"}},
 				Selectors: []*colibri.Selector{
 					{Name: "Female", Expr: ")//female)", Type: "xpath"}, // invalid XPath
 					{Name: "City", Expr: "//city", Type: "error"},       // ErrExprType
 
 					{Name: "Hobbies", Expr: "//hobbies[/*", Type: "xpath", All: true}, // invalid XPath
 					{Name: "Jobs", Expr: "//job/*", Type: "error", All: true},         // ErrExprType
-				},
-				Extra: map[string]any{
-					"Content-Type": "application/json",
-					"Body":         jsonBody,
 				},
 			},
 			nil, /* Output */
@@ -258,16 +235,13 @@ func TestParsers(t *testing.T) {
 		{
 			"TextErr",
 			&colibri.Rules{
+				Header: http.Header{"Accept": []string{"text/plain"}},
 				Selectors: []*colibri.Selector{
 					{Name: "Go", Expr: `)\bGo\]`, Type: "regular"},                   // invalid regular expression
 					{Name: "Source", Expr: `\bhttps?://\S+/source\b`, Type: "error"}, // ErrExprType
 
 					{Name: "URLs", Expr: `\Khttps?://\S+\K`, Type: "regular", All: true},                // invalid regular expression
 					{Name: "Emails", Expr: `[\w\.-]+@[\w\.-]+\.[a-zA-Z]{2,}`, Type: "error", All: true}, // ErrExprType
-				},
-				Extra: map[string]any{
-					"Content-Type": "text/plain",
-					"Body":         textBody,
 				},
 			},
 			nil, /* Output */
@@ -281,16 +255,13 @@ func TestParsers(t *testing.T) {
 		{
 			"XMLErr",
 			&colibri.Rules{
+				Header: http.Header{"Accept": []string{"application/xml"}},
 				Selectors: []*colibri.Selector{
 					{Name: "title", Expr: "]//channel[/title", Type: "xpath"}, // invalid XPath
 					{Name: "link", Expr: "//link", Type: "error"},             // ErrExprType
 
 					{Name: "items", Expr: "()//channel/item", Type: "xpath", All: true}, // invalid XPath
 					{Name: "a", Expr: "//a", Type: "error", All: true},                  // ErrExprType
-				},
-				Extra: map[string]any{
-					"Content-Type": "application/xml",
-					"Body":         xmlBody,
 				},
 			},
 			nil, /* Output */
@@ -310,8 +281,7 @@ func TestParsers(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 
-			resp := newTestResponse(c, tt.Rules)
-			output, err := parsers.Parse(tt.Rules, resp)
+			output, err := c.Extract(tt.Rules)
 			if (err != nil) && (tt.ErrMap != nil) {
 				wantErr, _ := json.Marshal(tt.ErrMap)
 				jsonErrs, _ := json.Marshal(err)
@@ -322,7 +292,7 @@ func TestParsers(t *testing.T) {
 				return
 
 			} else if (err == nil) && (tt.ErrMap == nil) {
-				if !reflect.DeepEqual(output, tt.Output) {
+				if !reflect.DeepEqual(output.Data, tt.OutputData) {
 					t.Fatal("not equal")
 				}
 				return
@@ -333,7 +303,7 @@ func TestParsers(t *testing.T) {
 	}
 }
 
-func TestParsers2(t *testing.T) {
+func TestParsers(t *testing.T) {
 	parsers, err := New()
 	if err != nil {
 		t.Fatal(err)
@@ -344,8 +314,8 @@ func TestParsers2(t *testing.T) {
 	c.Parser = parsers
 
 	t.Run("ResponseNil", func(t *testing.T) {
-		output, err := parsers.Parse(&colibri.Rules{}, nil)
-		if output != nil {
+		node, err := parsers.Parse(&colibri.Rules{}, nil)
+		if node != nil {
 			t.Fatal("must be nil")
 		} else if err != nil {
 			t.Fatal(err)
@@ -353,358 +323,16 @@ func TestParsers2(t *testing.T) {
 	})
 
 	t.Run("ErrNotMatch", func(t *testing.T) {
-		rules := &colibri.Rules{
-			Extra: map[string]any{
-				"Content-Type": "apk",
-				"Body":         "",
-			},
+		resp := &testResp{
+			header: http.Header{},
 		}
-		resp := newTestResponse(c, rules)
+		resp.header.Set("Content-Type", "apk")
+
 		_, err := parsers.Parse(&colibri.Rules{}, resp)
 		if !errors.Is(err, ErrNotMatch) {
 			t.Fatal(err)
 		}
 	})
-}
-
-func TestParsersFollow(t *testing.T) {
-	parsers, err := New()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	c := colibri.New()
-	c.Client = &testClient{}
-	c.Parser = parsers
-
-	tests := []struct {
-		Name   string
-		Rules  *colibri.Rules
-		Output map[string]any
-		ErrMap map[string]any
-	}{
-		{
-			"HTML",
-			&colibri.Rules{
-				URL: mustNewURL("https://page.test"),
-				Selectors: []*colibri.Selector{
-					{
-						Name:   "a-follow",
-						Expr:   "//a/@href",
-						All:    true,
-						Follow: true,
-						Selectors: []*colibri.Selector{
-							{Name: "title", Expr: "title", Type: "css"},
-						},
-						Header: http.Header{"Accept": []string{"text/html"}},
-					},
-				},
-				Extra: map[string]any{
-					"Content-Type": "text/html",
-					"Body":         htmlBody,
-				},
-			},
-			map[string]any{
-				"a-follow": []map[string]any{
-					{
-						"response": map[string]any{
-							"url":    "https://page.test/html/1",
-							"code":   200,
-							"header": http.Header{"Content-Type": []string{"text/html"}},
-						},
-						"data": map[string]any{"title": "My test page"},
-					},
-					{
-						"response": map[string]any{
-							"url":    "https://page.test/html/2",
-							"code":   200,
-							"header": http.Header{"Content-Type": []string{"text/html"}},
-						},
-						"data": map[string]any{"title": "My test page"},
-					},
-					{
-						"response": map[string]any{
-							"url":    "https://page.test/html/3",
-							"code":   200,
-							"header": http.Header{"Content-Type": []string{"text/html"}},
-						},
-						"data": map[string]any{"title": "My test page"},
-					},
-				},
-			},
-			nil, /* ErrMap */
-		},
-		{
-			"JSON",
-			&colibri.Rules{
-				Selectors: []*colibri.Selector{
-					{
-						Name:   "web",
-						Expr:   "//web",
-						Type:   "xpath",
-						Follow: true,
-						Selectors: []*colibri.Selector{
-							{Name: "url", Expr: "//URL", Type: "xpath"},
-						},
-						Header: http.Header{"Accept": []string{"application/json"}},
-					},
-				},
-				Extra: map[string]any{
-					"Content-Type": "application/json",
-					"Body":         jsonBody,
-				},
-			},
-			map[string]any{
-				"web": []map[string]any{
-					{
-						"response": map[string]any{
-							"url":    "https://go.dev/blog/gopher",
-							"code":   200,
-							"header": http.Header{"Content-Type": []string{"application/json"}},
-						},
-						"data": map[string]any{"url": "https://go.dev/blog/gopher"},
-					},
-				},
-			},
-			nil, /* ErrMap */
-		},
-		{
-			"Text",
-			&colibri.Rules{
-				Selectors: []*colibri.Selector{
-					{
-						Name:   "source",
-						Expr:   `\bhttps?://\S+/source\b`,
-						Type:   "regular",
-						Follow: true,
-						Selectors: []*colibri.Selector{
-							{Name: "link", Expr: `\bhttps?://\S+\b`, Type: "regular"},
-						},
-						Header: http.Header{"Accept": []string{"text/plain"}},
-					},
-					{
-						Name:   "URLs",
-						Expr:   `\bhttps?://\S+\b`,
-						Type:   "regular",
-						All:    true,
-						Follow: true,
-						Selectors: []*colibri.Selector{
-							{Name: "link", Expr: `.*`, Type: "regular"},
-						},
-						Header: http.Header{"Accept": []string{"text/plain"}},
-					},
-				},
-				Extra: map[string]any{
-					"Content-Type": "text/plain",
-					"Body":         textBody,
-				},
-			},
-			map[string]any{
-				"source": []map[string]any{
-					{
-						"response": map[string]any{
-							"url":    "https://go.dev/doc/install/source",
-							"code":   200,
-							"header": http.Header{"Content-Type": []string{"text/plain"}},
-						},
-						"data": map[string]any{
-							"link": "https://go.dev/doc/install/source",
-						},
-					},
-				},
-				"URLs": []map[string]any{
-					{
-						"response": map[string]any{
-							"url":    "https://go.dev/dl",
-							"code":   200,
-							"header": http.Header{"Content-Type": []string{"text/plain"}},
-						},
-						"data": map[string]any{"link": "URL: https://go.dev/dl"},
-					},
-					{
-						"response": map[string]any{
-							"url":    "https://go.dev/doc/install",
-							"code":   200,
-							"header": http.Header{"Content-Type": []string{"text/plain"}},
-						},
-						"data": map[string]any{"link": "URL: https://go.dev/doc/install"},
-					},
-					{
-						"response": map[string]any{
-							"url":    "https://go.dev/doc/install/source",
-							"code":   200,
-							"header": http.Header{"Content-Type": []string{"text/plain"}},
-						},
-						"data": map[string]any{"link": "URL: https://go.dev/doc/install/source"},
-					},
-					{
-						"response": map[string]any{
-							"url":    "https://go.dev/doc/contribute",
-							"code":   200,
-							"header": http.Header{"Content-Type": []string{"text/plain"}},
-						},
-						"data": map[string]any{"link": "URL: https://go.dev/doc/contribute"},
-					},
-					{
-						"response": map[string]any{
-							"url":    "https://go.dev/wiki/Questions",
-							"code":   200,
-							"header": http.Header{"Content-Type": []string{"text/plain"}},
-						},
-						"data": map[string]any{"link": "URL: https://go.dev/wiki/Questions"},
-					},
-				},
-			},
-			nil, /* ErrMap */
-		},
-		{
-			"XML",
-			&colibri.Rules{
-				Selectors: []*colibri.Selector{
-					{
-						Name:   "link",
-						Expr:   "//channel/link",
-						Type:   "xpath",
-						Follow: true,
-						Selectors: []*colibri.Selector{
-							{Name: "title", Expr: "//title", Type: "xpath"},
-						},
-						Header: http.Header{"Accept": []string{"application/xml"}},
-					},
-					{
-						Name:   "itemLinks",
-						Expr:   "//item/link",
-						Type:   "xpath",
-						All:    true,
-						Follow: true,
-						Selectors: []*colibri.Selector{
-							{Name: "title", Expr: "//title", Type: "xpath"},
-						},
-						Header: http.Header{"Accept": []string{"application/xml"}},
-					},
-				},
-				Extra: map[string]any{
-					"Content-Type": "application/xml",
-					"Body":         xmlBody,
-				},
-			},
-			map[string]any{
-				"link": []map[string]any{
-					{
-						"response": map[string]any{
-							"url":    "https://www.test.rss",
-							"code":   200,
-							"header": http.Header{"Content-Type": []string{"application/xml"}},
-						},
-						"data": map[string]any{"title": "Test RSS"},
-					},
-				},
-				"itemLinks": []map[string]any{
-					{
-						"response": map[string]any{
-							"url":    "https://www.test.rss/item2",
-							"code":   200,
-							"header": http.Header{"Content-Type": []string{"application/xml"}},
-						},
-						"data": map[string]any{"title": "Test RSS"},
-					},
-					{
-						"response": map[string]any{
-							"url":    "https://www.test.rss/item1",
-							"code":   200,
-							"header": http.Header{"Content-Type": []string{"application/xml"}},
-						},
-						"data": map[string]any{"title": "Test RSS"},
-					},
-				},
-			},
-			nil, /* ErrMap */
-		},
-
-		{
-			"JSON_URLErr",
-			&colibri.Rules{
-				Selectors: []*colibri.Selector{
-					{
-						Name:   "since",
-						Expr:   "//since",
-						Type:   "xpath",
-						Follow: true,
-					},
-				},
-				Extra: map[string]any{
-					"Content-Type": "application/json",
-					"Body":         jsonBody,
-				},
-			},
-			nil, /* Output */
-			map[string]any{
-				"since": map[string]any{
-					"2011": colibri.ErrMustBeString.Error(),
-				},
-			},
-		},
-		{
-			"XML_URLErr",
-			&colibri.Rules{
-				Selectors: []*colibri.Selector{
-					{
-						Name:   "itemLinks",
-						Expr:   "//item/link",
-						Type:   "xpath",
-						All:    true,
-						Follow: true,
-						Selectors: []*colibri.Selector{
-							{Name: "title", Expr: "//title", Type: "xpath"},
-						},
-						Extra: map[string]any{
-							"Header": http.Header{"Accept": []string{"NOTFOUND"}},
-						},
-					},
-				},
-				Extra: map[string]any{
-					"Content-Type": "application/xml",
-					"Body":         xmlBody,
-				},
-			},
-			nil, /* Output */
-			map[string]any{
-				"itemLinks": map[string]any{
-					"https://www.test.rss/item1": "Not Found",
-					"https://www.test.rss/item2": "Not Found",
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-
-		t.Run(tt.Name, func(t *testing.T) {
-			t.Parallel()
-
-			resp := newTestResponse(c, tt.Rules)
-			output, err := parsers.Parse(tt.Rules, resp)
-
-			if (err != nil) && (tt.ErrMap != nil) {
-				wantErr, _ := json.Marshal(tt.ErrMap)
-				jsonErrs, _ := json.Marshal(err)
-
-				if !reflect.DeepEqual(wantErr, jsonErrs) {
-					t.Fatal(err)
-				}
-				return
-
-			} else if (err == nil) && (tt.ErrMap == nil) {
-				if !reflect.DeepEqual(output, tt.Output) {
-					t.Fatal("not equal")
-				}
-				return
-			}
-
-			t.Fatal(err)
-		})
-	}
 }
 
 func TestSet(t *testing.T) {
@@ -715,7 +343,7 @@ func TestSet(t *testing.T) {
 	parsers.Clear()
 
 	t.Run("setNilFunc", func(t *testing.T) {
-		var parserFunc func(colibri.Response) (Node, error)
+		var parserFunc func(colibri.Response) (colibri.Node, error)
 		err := Set(parsers, ".*", parserFunc)
 		if err != nil {
 			t.Fatal(err)
@@ -819,30 +447,12 @@ type testResp struct {
 	c      *colibri.Colibri
 }
 
-func newTestResponse(c *colibri.Colibri, rules *colibri.Rules) *testResp {
-	contentType := rules.Extra["Content-Type"].(string)
-	body := rules.Extra["Body"].(string)
-
-	resp := &testResp{u: rules.URL, header: http.Header{}, c: c}
-
-	resp.header.Set("Content-Type", contentType)
-	resp.body = io.NopCloser(strings.NewReader(body))
-	return resp
-}
-
-func (r *testResp) URL() *url.URL         { return r.u }
-func (r *testResp) StatusCode() int       { return 200 }
-func (r *testResp) Header() http.Header   { return r.header }
-func (r *testResp) Body() io.ReadCloser   { return r.body }
-func (r *testResp) Redirects() []*url.URL { return nil }
-
-func (r *testResp) Serializable() map[string]any {
-	return map[string]any{
-		"url":    r.u.String(),
-		"code":   r.StatusCode(),
-		"header": r.Header(),
-	}
-}
+func (r *testResp) URL() *url.URL                { return r.u }
+func (r *testResp) StatusCode() int              { return 200 }
+func (r *testResp) Header() http.Header          { return r.header }
+func (r *testResp) Body() io.ReadCloser          { return r.body }
+func (r *testResp) Redirects() []*url.URL        { return nil }
+func (r *testResp) Serializable() map[string]any { return map[string]any{} }
 
 func (r *testResp) Do(rules *colibri.Rules) (colibri.Response, error) { return r.c.Do(rules) }
 func (r *testResp) Extract(rules *colibri.Rules) (*colibri.Output, error) {
@@ -862,10 +472,10 @@ func (client *testClient) Do(c *colibri.Colibri, rules *colibri.Rules) (colibri.
 		body = htmlBody
 
 	case regexp.MustCompile(JSONRegexp).MatchString(accept):
-		body = "{\"URL\": \"" + rules.URL.String() + "\"}"
+		body = jsonBody
 
 	case regexp.MustCompile(TextRegexp).MatchString(accept):
-		body = "URL: " + rules.URL.String()
+		body = textBody
 
 	case regexp.MustCompile(XMLRegexp).MatchString(accept):
 		body = xmlBody
@@ -875,8 +485,10 @@ func (client *testClient) Do(c *colibri.Colibri, rules *colibri.Rules) (colibri.
 
 	}
 
-	rules.Extra["Content-Type"] = accept
-	rules.Extra["Body"] = body
-	return newTestResponse(c, rules), nil
+	resp := &testResp{u: rules.URL, header: http.Header{}, c: c}
+
+	resp.header.Set("Content-Type", accept)
+	resp.body = io.NopCloser(strings.NewReader(body))
+	return resp, nil
 }
 func (client *testClient) Clear() {}

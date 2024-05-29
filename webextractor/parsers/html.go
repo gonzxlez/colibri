@@ -32,30 +32,30 @@ func ParseHTML(resp colibri.Response) (*HTMLNode, error) {
 	return &HTMLNode{root}, nil
 }
 
-func (html *HTMLNode) Find(expr, exprType string) (Node, error) {
-	if exprType == "" {
-		exprType = XPathExpr
+func (html *HTMLNode) Find(selector *colibri.Selector) (colibri.Node, error) {
+	if selector.Type == "" {
+		selector.Type = XPathExpr
 	}
 
 	switch {
-	case strings.EqualFold(exprType, XPathExpr):
-		return html.XPathFind(expr)
-	case strings.EqualFold(exprType, CSSelector):
-		return html.CSSFind(expr)
+	case strings.EqualFold(selector.Type, XPathExpr):
+		return html.XPathFind(selector.Expr)
+	case strings.EqualFold(selector.Type, CSSelector):
+		return html.CSSFind(selector.Expr)
 	}
 	return nil, ErrExprType
 }
 
-func (html *HTMLNode) FindAll(expr, exprType string) ([]Node, error) {
-	if exprType == "" {
-		exprType = XPathExpr
+func (html *HTMLNode) FindAll(selector *colibri.Selector) ([]colibri.Node, error) {
+	if selector.Type == "" {
+		selector.Type = XPathExpr
 	}
 
 	switch {
-	case strings.EqualFold(exprType, XPathExpr):
-		return html.XPathFindAll(expr)
-	case strings.EqualFold(exprType, CSSelector):
-		return html.CSSFindAll(expr)
+	case strings.EqualFold(selector.Type, XPathExpr):
+		return html.XPathFindAll(selector.Expr)
+	case strings.EqualFold(selector.Type, CSSelector):
+		return html.CSSFindAll(selector.Expr)
 	}
 	return nil, ErrExprType
 }
@@ -64,7 +64,7 @@ func (html *HTMLNode) Value() any {
 	return htmlquery.InnerText(html.node)
 }
 
-func (html *HTMLNode) XPathFind(expr string) (Node, error) {
+func (html *HTMLNode) XPathFind(expr string) (colibri.Node, error) {
 	htmlNode, err := htmlquery.Query(html.node, expr)
 	if err != nil {
 		return nil, err
@@ -75,20 +75,20 @@ func (html *HTMLNode) XPathFind(expr string) (Node, error) {
 	return &HTMLNode{htmlNode}, nil
 }
 
-func (html *HTMLNode) XPathFindAll(expr string) ([]Node, error) {
+func (html *HTMLNode) XPathFindAll(expr string) ([]colibri.Node, error) {
 	htmlNodes, err := htmlquery.QueryAll(html.node, expr)
 	if err != nil {
 		return nil, err
 	}
 
-	var elements []Node
+	var elements []colibri.Node
 	for _, node := range htmlNodes {
 		elements = append(elements, &HTMLNode{node})
 	}
 	return elements, nil
 }
 
-func (html *HTMLNode) CSSFind(expr string) (Node, error) {
+func (html *HTMLNode) CSSFind(expr string) (colibri.Node, error) {
 	sel, err := cascadia.Compile(expr)
 	if err != nil {
 		return nil, err
@@ -101,13 +101,13 @@ func (html *HTMLNode) CSSFind(expr string) (Node, error) {
 	return &HTMLNode{htmlNode}, nil
 }
 
-func (html *HTMLNode) CSSFindAll(expr string) ([]Node, error) {
+func (html *HTMLNode) CSSFindAll(expr string) ([]colibri.Node, error) {
 	sel, err := cascadia.Compile(expr)
 	if err != nil {
 		return nil, err
 	}
 
-	var elements []Node
+	var elements []colibri.Node
 	for _, node := range cascadia.QueryAll(html.node, sel) {
 		elements = append(elements, &HTMLNode{node})
 	}
