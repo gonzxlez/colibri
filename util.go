@@ -1,11 +1,38 @@
 package colibri
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strings"
 	"time"
+)
+
+var (
+	// ErrInvalidHeader is returned when the value is an invalid header.
+	ErrInvalidHeader = errors.New("invalid header")
+
+	// ErrMustBeString is returned when the value is not a string.
+	ErrMustBeString = errors.New("must be a string")
+
+	// ErrMustBeNumber is returned when the value is not a number.
+	ErrMustBeNumber = errors.New("must be a number")
+
+	// ErrNotAssignable is returned when the value is not assignable to the field.
+	ErrNotAssignable = errors.New("value is not assignable to field")
+)
+
+var (
+	intType = reflect.TypeOf(int(0))
+
+	urlType = reflect.TypeOf((*url.URL)(nil))
+
+	headerType = reflect.TypeOf(http.Header{})
+
+	durationType = reflect.TypeOf(time.Duration(0))
+
+	selectorsType = reflect.TypeOf([]*Selector{})
 )
 
 func processRaw[T Rules | Selector](raw map[string]any, output *T) error {

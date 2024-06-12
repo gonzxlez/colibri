@@ -1,4 +1,7 @@
 # Colibri
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/gonzxlez/colibri.svg)](https://pkg.go.dev/github.com/gonzxlez/colibri)
+
 Colibri is an extensible web crawling and scraping framework for Go, used to crawl and extract structured data on the web.
 
 See [webextractor](webextractor/README.md).
@@ -84,6 +87,7 @@ fmt.Println("Data:", output.Data)
 	"IgnoreRobotsTxt": "bool",
 	"Delay": "number_millisecond",
 	"Redirects": "number",
+	"ResponseBodySize": "number_bytes",
 	"Selectors": {...}
 }
 ```

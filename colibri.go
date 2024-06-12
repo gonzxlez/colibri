@@ -12,8 +12,19 @@ import (
 	"time"
 )
 
-// DefaultUserAgent is the default User-Agent used for requests.
-const DefaultUserAgent = "colibri/0.2"
+const (
+	// DefaultResponseBodySize default maximum size of the response body.
+	DefaultResponseBodySize = 5 * 1024 * 1024
+
+	// DefaultDelay default delay time between requests.
+	DefaultDelay = 5 * time.Second
+
+	// DefaultTimeout default timeout used for HTTP requests.
+	DefaultTimeout = 5 * time.Second
+
+	// DefaultUserAgent is the default User-Agent used for requests.
+	DefaultUserAgent = "colibri/0.3"
+)
 
 var (
 	// ErrClientIsNil returned when Client is nil.
@@ -22,14 +33,17 @@ var (
 	// ErrParserIsNil returned when Parser is nil.
 	ErrParserIsNil = errors.New("parser is nil")
 
+	// ErrResponseBodySize returned when the response body size is too large.
+	ErrResponseBodySize = errors.New("response body too large")
+
 	// ErrRulesIsNil returned when rules are nil.
 	ErrRulesIsNil = errors.New("rules is nil")
 
 	// ErrMaxRedirects are returned when the redirect limit is reached.
 	ErrMaxRedirects = errors.New("max redirects limit reached")
 
-	// ErrorRobotstxtRestriction is returned when the page cannot be accessed due to robots.txt restrictions.
-	ErrorRobotstxtRestriction = errors.New("page not accessible due to robots.txt restriction")
+	// ErrRobotstxtRestriction is returned when the page cannot be accessed due to robots.txt restrictions.
+	ErrRobotstxtRestriction = errors.New("page not accessible due to robots.txt restriction")
 )
 
 type (
@@ -165,6 +179,21 @@ func (c *Colibri) Do(rules *Rules) (resp Response, err error) {
 
 	if rules.Header.Get("User-Agent") == "" {
 		rules.Header.Set("User-Agent", DefaultUserAgent)
+	}
+
+	// ResponseBodySize
+	if rules.ResponseBodySize == 0 {
+		rules.ResponseBodySize = DefaultResponseBodySize
+	}
+
+	// Delay
+	if rules.Delay == 0 {
+		rules.Delay = DefaultDelay
+	}
+
+	// Timeout
+	if rules.Timeout <= 0 {
+		rules.Timeout = DefaultTimeout
 	}
 
 	if (c.RobotsTxt != nil) && !rules.IgnoreRobotsTxt {

@@ -325,8 +325,8 @@ func TestWithRobotsTxt(t *testing.T) {
 		WantErr error
 	}{
 		{"GET", "", header, false, nil /*WantErr*/},
-		{"POST", "/disallow", header, false, colibri.ErrorRobotstxtRestriction},
-		{"PUT", "/disallow", nil, false, colibri.ErrorRobotstxtRestriction},
+		{"POST", "/disallow", header, false, colibri.ErrRobotstxtRestriction},
+		{"PUT", "/disallow", nil, false, colibri.ErrRobotstxtRestriction},
 		{"GET", "/robots.txt", header, false, nil /*WantErr*/}, // ignore
 
 		{"POST", "/disallow", header, true, nil /*WantErr*/},
@@ -426,6 +426,44 @@ func TestWithRedirects(t *testing.T) {
 				t.Fatal("")
 			} else if !reflect.DeepEqual(respMap["redirects"], tt.Redirects) {
 				t.Fatal(respMap["redirects"])
+			}
+		})
+	}
+}
+
+func TestResponseBodySize(t *testing.T) {
+	ts := testServer()
+	defer ts.Close()
+
+	we, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	we.Delay = nil     // Deactivate Delay
+	we.RobotsTxt = nil // Deactivate RobotsTxt
+
+	tests := []struct {
+		BodySize int
+		Err      error
+	}{
+		{0, nil},
+		{-1, colibri.ErrResponseBodySize},
+		{1, colibri.ErrResponseBodySize},
+		{5000, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(strconv.Itoa(tt.BodySize), func(t *testing.T) {
+			rules := &colibri.Rules{
+				Method:           http.MethodGet,
+				URL:              mustNewURL(ts.URL + "/xml"),
+				ResponseBodySize: tt.BodySize,
+			}
+
+			_, err := we.Do(rules)
+			if !errors.Is(err, tt.Err) {
+				t.Fatal(err)
 			}
 		})
 	}

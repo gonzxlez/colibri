@@ -2,6 +2,7 @@
 package webextractor
 
 import (
+	"io"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
@@ -14,9 +15,6 @@ import (
 
 	"golang.org/x/net/publicsuffix"
 )
-
-// DefaultTimeout default timeout used for HTTP requests.
-const DefaultTimeout = 5 * time.Second
 
 // New returns a new Colibri structure with default values.
 // Returns an error if an error occurs when initializing the values.
@@ -78,13 +76,6 @@ func (client *Client) Do(c *colibri.Colibri, rules *colibri.Rules) (colibri.Resp
 		httpClient.Jar = nil
 	}
 
-	// Timeout
-	if rules.Timeout > 0 {
-		httpClient.Timeout = rules.Timeout
-	} else {
-		httpClient.Timeout = DefaultTimeout
-	}
-
 	// Request
 	req, err := httpRequest(rules)
 	if err != nil {
@@ -107,7 +98,23 @@ func (client *Client) Do(c *colibri.Colibri, rules *colibri.Rules) (colibri.Resp
 	if err != nil {
 		return nil, err
 	}
-	return &Response{HTTP: resp, redirects: redirects, c: c}, nil
+
+	r := &Response{
+		HTTP:      resp,
+		redirects: redirects,
+		c:         c,
+	}
+
+	// ResponseBodySize
+	if rules.ResponseBodySize != 0 {
+		n := int64(rules.ResponseBodySize)
+		r.HTTP.Body = io.NopCloser(io.LimitReader(resp.Body, n))
+
+		if resp.ContentLength > n {
+			return r, colibri.ErrResponseBodySize
+		}
+	}
+	return r, nil
 }
 
 // Clear assigns nil to Jar.

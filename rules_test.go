@@ -19,6 +19,7 @@ var (
 	"ignoreRobotsTXT": true,
 	"delay":           1.5,
 	"redirects": 3,
+	"responseBodySize": 5000,
 	"Selectors": {
 		"body": {
 			"name": "body",
@@ -48,16 +49,16 @@ var (
 }`)
 
 	testBadRawRulesJSON = []byte(`{
-	"Method":          0.1,
-	"url":             "http://example.com",
-	"proxy":           "$$$$<:>8080",
-	"header":          {"User-Agent": 0.2},
-	"timeout":         "2.5",
-	"cookies":         "true",
-	"ignoreRobotsTXT": 1,
-	"delay":           {},
-	"bodysize":        "5mb",
-	"redirects":       true,
+	"Method":           0.1,
+	"url":              "http://example.com",
+	"proxy":            "$$$$<:>8080",
+	"header":           {"User-Agent": 0.2},
+	"timeout":          "2.5",
+	"cookies":          "true",
+	"ignoreRobotsTXT":  1,
+	"delay":            {},
+	"responseBodySize": "5mb",
+	"redirects":        true,
 	"Selectors": {
 		"body": {
 			"name": "body",
@@ -159,7 +160,11 @@ func TestRules_UnmarshalJSON(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
+
 			newRules := &Rules{}
 			defer ReleaseRules(newRules)
 
@@ -183,16 +188,17 @@ func TestSelector_Rules(t *testing.T) {
 		Rules    *Rules
 	}{
 		{testRules, testSelector, &Rules{
-			Method:          testSelector.Method,
-			Proxy:           testRules.Proxy,
-			Header:          http.Header{"User-Agent": {"test/0.2.0"}},
-			Timeout:         testRules.Timeout,
-			Cookies:         testRules.Cookies,
-			IgnoreRobotsTxt: testRules.IgnoreRobotsTxt,
-			Delay:           testRules.Delay,
-			Redirects:       testRules.Redirects,
-			Selectors:       testSelector.Selectors,
-			Extra:           testSelector.Extra,
+			Method:           testSelector.Method,
+			Proxy:            testRules.Proxy,
+			Header:           http.Header{"User-Agent": {"test/0.2.0"}},
+			Timeout:          testRules.Timeout,
+			Cookies:          testRules.Cookies,
+			IgnoreRobotsTxt:  testRules.IgnoreRobotsTxt,
+			Delay:            testRules.Delay,
+			Redirects:        testRules.Redirects,
+			ResponseBodySize: testRules.ResponseBodySize,
+			Selectors:        testSelector.Selectors,
+			Extra:            testSelector.Extra,
 		}},
 
 		{
@@ -223,9 +229,12 @@ func TestSelector_Rules(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run("", func(t *testing.T) {
-			rules := tt.Selector.Rules(tt.SRC)
+		tt := tt
 
+		t.Run("", func(t *testing.T) {
+			t.Parallel()
+
+			rules := tt.Selector.Rules(tt.SRC)
 			if !reflect.DeepEqual(rules, tt.Rules) {
 				t.Fatal("not equal")
 			}

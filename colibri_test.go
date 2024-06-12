@@ -42,16 +42,17 @@ var (
 	}
 
 	testRules = &Rules{
-		Method:          "GET",
-		URL:             mustNewURL("http://example.com"),
-		Proxy:           mustNewURL("http://proxy.example.com:8080"),
-		Header:          http.Header{"User-Agent": {"test/0.2.0"}},
-		Timeout:         2500000 * time.Nanosecond,
-		Cookies:         true,
-		IgnoreRobotsTxt: true,
-		Delay:           1500000 * time.Nanosecond,
-		Redirects:       3,
-		Selectors:       []*Selector{testSelector},
+		Method:           "GET",
+		URL:              mustNewURL("http://example.com"),
+		Proxy:            mustNewURL("http://proxy.example.com:8080"),
+		Header:           http.Header{"User-Agent": {"test/0.2.0"}},
+		Timeout:          2500000 * time.Nanosecond,
+		Cookies:          true,
+		IgnoreRobotsTxt:  true,
+		Delay:            1500000 * time.Nanosecond,
+		Redirects:        3,
+		ResponseBodySize: 5000,
+		Selectors:        []*Selector{testSelector},
 		Extra: map[string]any{
 			"token": float64(505),
 		},
@@ -111,7 +112,7 @@ func TestDo(t *testing.T) {
 		},
 		{
 			Name:           "noDelayStart",
-			Rules:          &Rules{},
+			Rules:          &Rules{Delay: -1},
 			Client:         true,
 			Delay:          true,
 			Robots:         true,
@@ -165,7 +166,11 @@ func TestDo(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.Name, func(t *testing.T) {
+			t.Parallel()
+
 			var (
 				c      = New()
 				delay  = &testDelay{}
@@ -387,12 +392,18 @@ func TestUserAgent(t *testing.T) {
 		{"test/0.0.1", "test/0.0.1"},
 	}
 
-	rules := &Rules{Header: http.Header{}}
 	for _, tt := range tests {
-		name := "(" + tt.UserAgent + "_" + tt.WantUserAgent + ")"
+		var (
+			tt    = tt
+			name  = "(" + tt.UserAgent + "_" + tt.WantUserAgent + ")"
+			rules = &Rules{Header: http.Header{}}
+		)
+
 		rules.Header.Set("User-Agent", tt.UserAgent)
 
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			_, err := c.Do(rules)
 			if err != nil {
 				t.Fatal(err)

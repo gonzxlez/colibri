@@ -24,9 +24,14 @@ func TestUtil_toInt(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		name := fmt.Sprint(tt.Input)
+		var (
+			tt   = tt
+			name = fmt.Sprint(tt.Input)
+		)
 
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			out, err := toInt(tt.Input)
 			if (err != nil && !tt.AnErr) || (err == nil && tt.AnErr) {
 				t.Fatal(err)
@@ -55,9 +60,14 @@ func TestUtil_toHeader(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		name := fmt.Sprint(tt.Input)
+		var (
+			tt   = tt
+			name = fmt.Sprint(tt.Input)
+		)
 
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			out, err := toHeader(tt.Input)
 			if (err != nil && !tt.AnErr) || (err == nil && tt.AnErr) {
 				t.Fatal(err)
@@ -86,7 +96,10 @@ func TestUtil_toDuration(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		name := fmt.Sprint(tt.Input)
+		var (
+			tt   = tt
+			name = fmt.Sprint(tt.Input)
+		)
 
 		t.Run(name, func(t *testing.T) {
 			out, err := toDuration(tt.Input)

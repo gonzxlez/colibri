@@ -125,7 +125,7 @@ func newSelectors(rawSelectors any) ([]*Selector, error) {
 // If the selector does not have a specified value for the Proxy, User-Agent, or Timeout fields,
 // the values from the source rules are used.
 //
-// The values for the Cookies, IgnoreRobotsTxt, Delay, Redirects fields are obtained from the source rules.
+// The values for the Cookies, IgnoreRobotsTxt, Delay, Redirects, ResponseBodySize fields are obtained from the source rules.
 func (sel *Selector) Rules(src *Rules) *Rules {
 	newRules := rulesPool.Get().(*Rules)
 
@@ -158,6 +158,7 @@ func (sel *Selector) Rules(src *Rules) *Rules {
 	newRules.IgnoreRobotsTxt = src.IgnoreRobotsTxt
 	newRules.Delay = src.Delay
 	newRules.Redirects = src.Redirects
+	newRules.ResponseBodySize = src.ResponseBodySize
 
 	if len(sel.Selectors) > 0 {
 		newRules.Selectors = CloneSelectors(sel.Selectors)

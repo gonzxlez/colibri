@@ -71,7 +71,7 @@ func (robots *RobotsData) IsAllowed(c *colibri.Colibri, rules *colibri.Rules) er
 	if robotsData.TestAgent(rules.URL.Path, rules.Header.Get("User-Agent")) {
 		return nil
 	}
-	return colibri.ErrorRobotstxtRestriction
+	return colibri.ErrRobotstxtRestriction
 }
 
 // Clear removes stored robots.txt restrictions.
